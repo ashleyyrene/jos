@@ -23,11 +23,15 @@ struct Command {
 	int (*func)(int argc, char** argv, struct Trapframe* tf);
 };
 
+int mon_show(int argc, char **argv, struct Trapframe *tf);
+
 // LAB 1: add your command to here...
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display a stack backtrace", mon_backtrace },
 	{ "hidden", "Run hidden test cases", exec_hidden_cases},
+	{ "show", "Print colorful ASCII art", mon_show },
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -61,10 +65,61 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// LAB 1: Your code here.
-    // HINT 1: use read_ebp().
-    // HINT 2: print the current ebp on the first line (not current_ebp[0])
+	uint32_t ebp = read_ebp();
+
+	cprintf("Stack backtrace:\n");
+
+	while (ebp != 0) {
+		uint32_t *frame = (uint32_t *) ebp;
+		uint32_t eip = frame[1];
+
+		cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
+			ebp, eip, frame[2], frame[3], frame[4], frame[5], frame[6]);
+
+		struct Eipdebuginfo info;
+		debuginfo_eip(eip - 1, &info);  
+		cprintf("         %s:%d: %.*s+%d\n",
+			info.eip_file,
+			info.eip_line,
+			info.eip_fn_namelen,
+			info.eip_fn_name,
+			(eip - 1) - info.eip_fn_addr);
+
+		ebp = frame[0];
+	}
+
 	return 0;
+}
+
+static void
+cprint(uint8_t fg, const char *s)
+{
+    console_setcolor(fg, 0);   // background = black
+    cprintf("%s", s);
+}
+
+int
+mon_show(int argc, char **argv, struct Trapframe *tf)
+{
+    cprintf("\n");
+
+    // 6-color banner
+    cprint(12, "  #######  ");   
+    cprint(14, "#######  ");    
+    cprint(10, "#######  ");    
+    cprint(11, "#######  ");     
+    cprint(9,  "#######  ");     
+    cprint(13, "#######\n");    
+
+    // ASCII cat art
+    cprint(14, "          /\\_/\\\n");
+    cprint(10, "         ( o.o )\n");
+    cprint(11, "          > ^ <\n");
+
+    // restore default color 
+    console_setcolor(7, 0);
+    cprintf("\n");
+    return 0;
 }
 
 int exec_hidden_cases(int argc, char **argv, struct Trapframe *tf) {

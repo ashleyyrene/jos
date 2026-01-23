@@ -128,6 +128,7 @@ lpt_putc(int c)
 static unsigned addr_6845;
 static uint16_t *crt_buf;
 static uint16_t crt_pos;
+static uint16_t crt_attr = 0x0700;
 
 static void
 cga_init(void)
@@ -162,9 +163,9 @@ cga_init(void)
 static void
 cga_putc(int c)
 {
-	// if no attribute given, then use black on white
+	// if no attribute given, use the current console attribute
 	if (!(c & ~0xFF))
-		c |= 0x0700;
+    	c |= crt_attr;
 
 	switch (c & 0xff) {
 	case '\b':
@@ -197,7 +198,7 @@ cga_putc(int c)
 
 		memmove(crt_buf, crt_buf + CRT_COLS, (CRT_SIZE - CRT_COLS) * sizeof(uint16_t));
 		for (i = CRT_SIZE - CRT_COLS; i < CRT_SIZE; i++)
-			crt_buf[i] = 0x0700 | ' ';
+			crt_buf[i] = crt_attr | ' ';
 		crt_pos -= CRT_COLS;
 	}
 
@@ -449,6 +450,11 @@ cons_init(void)
 		cprintf("Serial port does not exist!\n");
 }
 
+void
+console_setcolor(uint8_t fg, uint8_t bg)
+{
+    crt_attr = ((bg & 0x0F) << 12) | ((fg & 0x0F) << 8);
+}
 
 // `High'-level console I/O.  Used by readline and cprintf.
 
