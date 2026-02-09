@@ -6,10 +6,16 @@
 #include <inc/memlayout.h>
 #include <inc/assert.h>
 #include <inc/x86.h>
+#include <inc/mmu.h>
 
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/hidden.h>
+#include <kern/pmap.h>
+
+
+
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -23,13 +29,20 @@ struct Command {
 
 int mon_show(int argc, char **argv, struct Trapframe *tf);
 
+int exec_hidden_cases(int argc, char **argv, struct Trapframe *tf);
+
+int mon_showmappings(int argc, char **argv, struct Trapframe *tf);
+
+
+
 // LAB 1: add your command to here...
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Display a stack backtrace", mon_backtrace },
-	{ "hidden", "Run hidden test cases", exec_hidden_cases},
+	{ "hidden", "Run hidden test cases", exec_hidden_cases },
 	{ "show", "Print colorful ASCII art", mon_show },
+	{ "showmappings", "Show VA -> PA mappings (and perms)", mon_showmappings },
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -125,6 +138,38 @@ int exec_hidden_cases(int argc, char **argv, struct Trapframe *tf) {
 	hidden_test_cases();
 	return 0;
 }
+
+int
+mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+{
+    if (argc != 3) {
+        cprintf("Usage: showmappings start_va end_va\n");
+        return 0;
+    }
+
+    uintptr_t start = strtol(argv[1], NULL, 0);
+    uintptr_t end   = strtol(argv[2], NULL, 0);
+
+    start = ROUNDDOWN(start, PGSIZE);
+    end   = ROUNDUP(end, PGSIZE);
+
+    for (uintptr_t va = start; va < end; va += PGSIZE) {
+        pte_t *pte = pgdir_walk(kern_pgdir, (void *) va, 0);
+
+        if (pte == NULL || (*pte & PTE_P) == 0) {
+            cprintf("VA 0x%08x -> not mapped\n", va);
+        } else {
+            physaddr_t pa = PTE_ADDR(*pte);
+            cprintf("VA 0x%08x -> PA 0x%08x  [", va, pa);
+            cprintf((*pte & PTE_U) ? "U" : "-");
+            cprintf((*pte & PTE_W) ? "W" : "-");
+            cprintf("P]\n");
+        }
+    }
+
+    return 0;
+}
+
 
 /***** Kernel monitor command interpreter *****/
 
