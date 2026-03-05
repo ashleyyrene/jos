@@ -81,9 +81,8 @@ TRAPHANDLER_NOEC(t_syscall,  T_SYSCALL)
 /*
  * Lab 3: Your code here for _alltraps
  */
- .globl _alltraps
+.globl _alltraps
 _alltraps:
-
     pushl %ds
     pushl %es
     pushal
@@ -96,10 +95,11 @@ _alltraps:
     call trap
     addl $4, %esp
 
+    # should never reach here, but if it does:
     popal
     popl %es
     popl %ds
-    addl $8, %esp     
+    addl $8, %esp
     iret
 
 
