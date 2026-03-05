@@ -1,0 +1,56 @@
+Exercise 3 Question:
+x should be uintptr_t since value is a C pointer and it is not a 
+physical address. 
+
+Exercise 5 Questions:
+(a) The top entry (1023) maps the top 4 MB of virtual address space
+and to the page table. Entries corresponding to the kernel region 
+starting at KERNBASE are filled in to map the kernel's virtual 
+addresses to physical memory starting at address 0. Entry 0 maps 
+the lowest virtual addresses used during early boot into protected
+mode. 
+
+Entry| Address    | Points to
+-------------------------------------------------
+1023 | 0xFFC00000 | Page table via virtual memory
+-------------------------------------------------
+1022 | 0xFF800000 | not mapped
+-------------------------------------------------
+960  | 0xF0000000 | maps physical memory starting at PA 0
+-------------------------------------------------
+959  | 0xEFC00000 | Kernel stack page table
+-------------------------------------------------
+956  | 0xEF000000 | read-only user mapping of pages
+-------------------------------------------------
+2    | 0x00800000 | not mapped
+-------------------------------------------------
+1    | 0x00400000 | not mapped
+-------------------------------------------------
+0    | 0x00000000 | not mapped
+
+(b) User programs cannot read or write kernel memory due to the 
+permission bits set in the page tables. Kernel-only pages have PTE_U 
+cleared which is the user-accessible bit. This means that the hardware
+enforces protection even though kernel and user environments have the 
+same address space and the x86 MMU checks permission bits on every
+memory access.
+
+(c) The maximum is 4 GB of physical memory because of its 32-bit 
+physical address space of the x86 architecture. It also uses 32-bit
+page table entries. 
+
+(d) There would be one struct PageInfo per physical page if there 
+actually was the maximum amount of physical memory. This would end up
+being about 1 million structures with each page being 4 KB. The overhead
+includes the page directory and page tables pages that maps memory. These
+structures consume several MB of memory for the overhead to manage physical
+and virtual memory. 
+
+(e) The CPU executes at a low EIP because the initial page table maps both
+the low physical addresses and the high virtual addresses to the same 
+physical memory. When the exeuction jumps to the kerenl's linked virtual
+address, the transition running at an EIP above KERNBASE occurs. This 
+transition is necessary so that the kernel can run at its intended 
+virtual address layout which is the higher half of the address space.
+If it were to continue to execute at low addresses, it would eventually
+fail once the identity mappings are removed. 
