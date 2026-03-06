@@ -5,4 +5,4 @@
 #include <inc/elf.h>
 #include "inc/stdio.h"
 
-bool hidden_test_cases(); 
+bool hidden_test_cases();
