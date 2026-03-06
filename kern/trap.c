@@ -115,7 +115,8 @@ trap_init(void)
     SETGATE(idt[T_MCHK],   0, GD_KT, t_mchk,   0);
     SETGATE(idt[T_SIMDERR],0, GD_KT, t_simderr,0);
 
-    SETGATE(idt[T_SYSCALL],0, GD_KT, t_syscall,3);  
+    SETGATE(idt[T_SYSCALL],0, GD_KT, t_syscall,3);
+
 
 	// Per-CPU setup
 	trap_init_percpu();
@@ -203,7 +204,12 @@ trap_dispatch(struct Trapframe *tf)
     case T_BRKPT:
         monitor(tf);
         return;
-
+	
+	case T_DEBUG:
+		tf->tf_eflags &= ~FL_TF;
+		monitor(tf);
+		return;
+	
     case T_SYSCALL:
         tf->tf_regs.reg_eax = syscall(
             tf->tf_regs.reg_eax,  
@@ -272,6 +278,9 @@ void
 page_fault_handler(struct Trapframe *tf)
 {
 	uint32_t fault_va;
+
+	if ((tf->tf_cs & 3) == 0)
+		panic("page fault in kernel mode");
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
