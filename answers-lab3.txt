@@ -1,0 +1,14 @@
+Exercise 4:
+1. An individual handler function for each exception/interrupt allows the kernel to preserve which trap occurred
+by arranging for the correct trap number to be pushed. The separate stubs make the resulting stack frame appear uniform
+essentially allowing the kernel to know which specific exeption occurred. If this was not the case, the kernel would be
+unable to identify the originating trap in the same structured and clean way. The feature that exists in the current 
+implementation is constructing a struct Trapframe that contains the right trap number and error code layout for each
+case. The individual stubs smooth out these differences so the traps are treated consistently since exceptions push an
+error code layout for each case automatically.
+
+2. No, I did not have to do anything to make user/softint behave correctly. The instruction int $14 refers to interrupt
+vector 14 but user programs are not allowed to directly call this interrupt due to the page fault entry in the IDT having
+privilege level 0. This means that only the kernel can use it. Because the program is running at privilege level 3, the CPU
+blocks the request and raises a general protection fault which is trap 13. If the kernel allowed softint's int $14 to 
+produce vector 14, then user programs could fake page faults and break protection between user space and the kernel.
