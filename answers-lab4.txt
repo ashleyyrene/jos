@@ -1,0 +1,26 @@
+Exercise 2 Question 1:
+The purpose of macro MPBOOTPHYS is to convert virtual addresses of the kernel to physical addresses so that the AP
+can execute bootstrap code correctly. Because kern/mpentry.S is linked at a high virtual address above KERNBASE yet
+the AP starts execution in real mode using physical addresses, the addresses used in mpentry have to be converted 
+to their physical equivalents. However, boot/boot.S does not need this since it already runs using physical addresses.
+If we omitted in kern/mpentry.S, the AP would try to access high virtual addresses before paging is set up and can lead
+to issues in accessing memory and cause potential crashes to the system.
+
+Exercise 5 Question 1:
+We still need separate kernel stacks for each CPU because entering the kernel uses a stack immediately before it aquires
+the lock. For example, if two CPUs enter the kernel at the same time, both will attempt to push trap frames onto the stack.
+If the stack were shared, it would cause corruption since they would overwrite each other's data. The kernel lock only protects
+execution inside the kernel and not for entry so there must be a separate kernel stack.
+
+Exercise 6 Question 1:
+The pointer e can be dereferenced both before and after the addressing switch because the kernel memory is mapped the same way
+in every address space. When a new page directory is loaded, the user portion of the address space is changed but the kernel
+portion is kept the same. Because e points to a structure in kernel memory, its virtual address still points to the same physical
+address after the switch which allows it to remain valid.
+
+Exercise 6 Question 2:
+The kernel must ensure the old environment's registers are saved so that the program can continue running later without losing its 
+state, including the stack pointer, instruction pointer, flags, and registers. If the kernel did not save the state, the process 
+would lose its execution context and cannot continue correctly. The saving happens when a trap or interrupt occurs, in which the
+kernel creates a trap frame that stores register values. This is stored in the env_tf structure. When the environment runs again
+using env_run(), the saved state is restored so execution can resume.

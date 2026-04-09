@@ -22,10 +22,19 @@ struct Command {
 	int (*func)(int argc, char** argv, struct Trapframe* tf);
 };
 
+int mon_help(int argc, char **argv, struct Trapframe *tf);
+int mon_kerninfo(int argc, char **argv, struct Trapframe *tf);
+int mon_backtrace(int argc, char **argv, struct Trapframe *tf);
+int mon_si(int argc, char **argv, struct Trapframe *tf);
+int mon_continue(int argc, char **argv, struct Trapframe *tf);
+
 // LAB 1: add your command to here...
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display a stack backtrace", mon_backtrace },
+	{ "si", "Single-step one instruction", mon_si },
+	{ "continue", "Continue execution", mon_continue },
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -62,7 +71,57 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	// LAB 1: Your code here.
     // HINT 1: use read_ebp().
     // HINT 2: print the current ebp on the first line (not current_ebp[0])
+	uintptr_t *ebp;
+	struct Eipdebuginfo info;
+	int i;
+
+	cprintf("Stack backtrace:\n");
+
+	ebp = (uintptr_t *) read_ebp();
+	while (ebp != NULL) {
+		uintptr_t eip = ebp[1];
+
+		cprintf("  ebp %08x  eip %08x  args", ebp, eip);
+		for (i = 0; i < 5; i++)
+			cprintf(" %08x", ebp[2 + i]);
+		cprintf("\n");
+
+		debuginfo_eip(eip, &info);
+		cprintf("         %s:%d: %.*s+%d\n",
+			info.eip_file,
+			info.eip_line,
+			info.eip_fn_namelen,
+			info.eip_fn_name,
+			eip - info.eip_fn_addr);
+
+		ebp = (uintptr_t *) ebp[0];
+	}
+
 	return 0;
+}
+
+int
+mon_si(int argc, char **argv, struct Trapframe *tf)
+{
+	if (tf == NULL) {
+		cprintf("No trapframe available.\n");
+		return 0;
+	}
+
+	tf->tf_eflags |= FL_TF;
+	return -1;
+}
+
+int
+mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	if (tf == NULL) {
+		cprintf("No trapframe available.\n");
+		return 0;
+	}
+
+	tf->tf_eflags &= ~FL_TF;
+	return -1;
 }
 
 
