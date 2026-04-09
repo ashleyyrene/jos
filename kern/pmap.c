@@ -288,8 +288,19 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	size_t i;
 
+	for (i = 0; i < NCPU; i++) {
+		uintptr_t kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+
+		boot_map_region(kern_pgdir,
+		                kstacktop_i - KSTKSIZE,
+		                KSTKSIZE,
+		                PADDR(percpu_kstacks[i]),
+		                PTE_W);
+	}
 }
+
 
 // --------------------------------------------------------------
 // Tracking of physical pages.
@@ -328,34 +339,38 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-    size_t first_free_page = PADDR(boot_alloc(0)) / PGSIZE;
+	size_t first_free_page = PADDR(boot_alloc(0)) / PGSIZE;
 
-    page_free_list = NULL;
+	page_free_list = NULL;
 
-    for (i = npages; i-- > 0; ) {
-        if (i == 0) {
-            pages[i].pp_ref = 1;
-            pages[i].pp_link = NULL;
-        }
-        else if (i < npages_basemem) {
-            pages[i].pp_ref = 0;
-            pages[i].pp_link = page_free_list;
-            page_free_list = &pages[i];
-        }
-        else if (i >= IOPHYSMEM / PGSIZE && i < EXTPHYSMEM / PGSIZE) {
-            pages[i].pp_ref = 1;
-            pages[i].pp_link = NULL;
-        }
-        else if (i < first_free_page) {
-            pages[i].pp_ref = 1;
-            pages[i].pp_link = NULL;
-        }
-        else {
-            pages[i].pp_ref = 0;
-            pages[i].pp_link = page_free_list;
-            page_free_list = &pages[i];
-        }
-    }
+	for (i = npages; i-- > 0; ) {
+		if (i == 0) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+		}
+		else if (i == MPENTRY_PADDR / PGSIZE) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+		}
+		else if (i < npages_basemem) {
+			pages[i].pp_ref = 0;
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
+		}
+		else if (i >= IOPHYSMEM / PGSIZE && i < EXTPHYSMEM / PGSIZE) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+		}
+		else if (i < first_free_page) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+		}
+		else {
+			pages[i].pp_ref = 0;
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
+		}
+	}
 }
 
 //
@@ -652,7 +667,20 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	uintptr_t start = base;
+	size_t rounded_size = ROUNDUP(size, PGSIZE);
+
+	if (base + rounded_size > MMIOLIM)
+		panic("mmio_map_region overflow");
+
+	boot_map_region(kern_pgdir,
+	                base,
+	                rounded_size,
+	                pa,
+	                PTE_W | PTE_PCD | PTE_PWT);
+
+	base += rounded_size;
+	return (void *) start;
 }
 
 static uintptr_t user_mem_check_addr;
