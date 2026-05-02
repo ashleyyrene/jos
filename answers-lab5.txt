@@ -1,0 +1,7 @@
+Question 1:
+No, you do not need to do anything else to ensure that the I/O privilege setting is preserved
+across environmental switches. This is due to the I/O privilege level being stored within the 
+EFLAGS register. The trapframe is automatically saved when switching out of the environment and
+it gets restored when switching back to it meaning that the I/O privilege level bits are preserved.
+All of the other environments can continue to run and it ensures that only the file system 
+environment retains the I/O privileges.  

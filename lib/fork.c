@@ -70,6 +70,12 @@ duppage(envid_t envid, unsigned pn)
 	void *va = (void *)(pn * PGSIZE);
 	int perm = uvpt[pn] & PTE_SYSCALL;
 
+	if (uvpt[pn] & PTE_SHARE) {
+		if ((r = sys_page_map(0, va, envid, va, perm)) < 0)
+			panic("sys_page_map share: %e", r);
+		return 0;
+	}
+
 	if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
 		perm = (perm | PTE_COW) & ~PTE_W;
 		if ((r = sys_page_map(0, va, envid, va, perm)) < 0)
